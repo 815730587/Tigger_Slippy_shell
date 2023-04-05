@@ -1,0 +1,82 @@
+#!/bin/dash
+num=$(cat .tigger/commit.log|cut -d' ' -f1|sort|tail -1)
+if [ "$1" != "--cached" ] && [ "$1" != "--force" ] ;then
+    
+    index_file=''
+    for file in .tigger/index/*;do
+        file=$(basename $file)
+        index_file="$index_file$file"
+    done
+    commit_file=''
+    for file in .tigger/index/.commit-"$num"/*;do
+        file=$(basename $file)
+        commit_file="$commit_file$file"
+    done
+    for file_1 in "$@";do
+        if [ -e .tigger/index/$file_1 ];then
+            compare_working=$(diff $file_1 .tigger/index/$file_1)
+            temp_working=$(echo $compare_working|sed -e 's/ //g')
+        fi
+        if [ -e .tigger/index/.commit-"$num"/$file_1 ];then
+            compare_commit=$(diff .tigger/index/$file_1 .tigger/index/.commit-"$num"/$file_1)
+            temp_commit=$(echo $compare_commit|sed -e 's/ //g')
+        fi
+        if [ -e $file_1 ] && [ -e .tigger/index/"$file_1" ] && [ $index_file = "$commit_file" ] && [ ! $temp_working ];then
+            rm "$file_1"
+            rm .tigger/index/"$file_1"
+        elif [ -e $file_1 ] && [ ! -e .tigger/index/"$file_1" ];then
+             echo tigger-rm: error: "'$file_1'" is not in the tigger repository
+        elif [ $index_file != "$commit_file" ] && [ ! $temp_working ];then
+             echo tigger-rm: error: "'$file_1'" has staged changes in the index
+        elif [ $temp_working ] && [ ! $temp_commit ];then
+             echo tigger-rm: error: "'$file_1'" in the repository is different to the working file
+        elif [ $temp_working ] && [ $temp_commit ];then
+             echo tigger-rm: error: "'$file_1'" in index is different to both the working file and the repository
+        fi
+    done
+elif [ $# -ge 2 ] && [ "$1" = "--cached" ];then
+    for file in "$@";do
+        if [ $file != "--cached" ] && [ $file != "--force"  ];then
+             if [ -e .tigger/index/$file ] && [ -e $file ];then
+                 compare_working=$(diff $file .tigger/index/$file)
+                 temp_working=$(echo $compare_working|sed -e 's/ //g')
+             else
+                 temp_working='nofile'
+             fi
+             if [ -e .tigger/index/.commit-"$num"/$file ] && [  -e .tigger/index/"$file" ];then
+                  compare_commit=$(diff .tigger/index/$file .tigger/index/.commit-"$num"/$file)
+                  temp_commit=$(echo $compare_commit|sed -e 's/ //g')
+             else
+                temp_commit='nofile'
+             fi
+             if [ ! $temp_working ] || [ ! $temp_commit ] ;then
+                 rm .tigger/index/"$file"
+             elif [ $temp_working ] && [  $temp_commit ] && [ $temp_working != "nofile" ];then
+                 echo tigger-rm: error: "'$file'" in index is different to both the working file and the repository
+             elif [ ! -e .tigger/index/$file ] ;then
+                 echo tigger-rm: error: "'$file'" is not in the tigger repository
+             fi
+        fi
+    done
+elif [ $# -ge 2 ] && [ "$1" = "--force" ] && [ "$2" != "--cached" ];then
+    for file in "$@";do
+        if [ $file != "--cached" -a  $file != "--force"  ];then
+            if [ ! -e .tigger/index/$file ];then
+               echo tigger-rm: error: "'$file'" is not in the tigger repository
+            else
+               rm $file
+               rm .tigger/index/$file
+            fi
+        fi
+    done
+elif [ $# -ge 3 ] && [ "$1" = "--force" ] && [ "$2" = "--cached" ];then
+  for file in "$@";do
+      if [ "$file" != "--force" ] && [ "$file" != "--cached" ];then
+         if [ ! -e .tigger/index/$file ];then
+               echo tigger-rm: error: "'$file'" is not in the tigger repository
+            else
+               rm .tigger/index/$file
+            fi
+      fi
+  done
+fi

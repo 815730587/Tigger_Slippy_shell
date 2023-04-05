@@ -1,0 +1,72 @@
+#!/bin/dash
+num=$(cat .tigger/commit.log|cut -d' ' -f1|sort|tail -1)
+for file in * ;do
+    if [ -e $file ] && [ -e .tigger/index/$file ] && [ -e .tigger/index/.commit-"$num"/$file ];then
+        compare_working=$(diff $file .tigger/index/$file)
+        temp_working=$(echo $compare_working|sed -e 's/ //g')
+        compare_commit=$(diff .tigger/index/$file .tigger/index/.commit-"$num"/$file)
+        temp_commit=$(echo $compare_commit|sed -e 's/ //g')
+        # echo "temp_working $temp_working"
+        # echo "temp_commit $temp_commit"
+        if [ $temp_working ] && [ $temp_commit ];then
+           echo $file "- file changed, different changes staged for commit" >> status_temporary_file
+        elif [ ! $temp_working ] && [ $temp_commit ];then
+           echo $file "- file changed, changes staged for commit" >> status_temporary_file
+        elif [ $temp_working ] && [ ! $temp_commit ];then
+           echo $file "- file changed, changes not staged for commit" >> status_temporary_file
+        elif [ ! $temp_working ] && [ ! $temp_commit ];then
+           echo $file "- same as repo" >> status_temporary_file
+        fi
+    elif [ -e $file ] && [ -e .tigger/index/$file ] && [ ! -e .tigger/index/.commit-"$num"/$file ];then
+         compare_working=$(diff $file .tigger/index/$file)
+         temp_working=$(echo $compare_working|sed -e 's/ //g')
+         if [ ! $temp_working ];then
+            echo $file "- added to index" >> status_temporary_file
+         elif [ $temp_working ];then
+            echo $file "- added to index, file changed" >> status_temporary_file
+         fi
+    else
+        commit_index=$num
+        flag=0
+        while [ $commit_index -ge 0 ];do
+              if [ ! -e $file ] && [ ! -e .tigger/index/$file ] && [ -e .tigger/index/.commit-"$commit_index"/$file ];then
+                 flag=1
+              fi
+              commit_index=$((commit_index-1))
+        done
+        if [ $flag -eq 0 ];then
+           echo $file "- untracked" >> status_temporary_file
+        fi
+    fi
+done
+#file deleted
+commit_index=$num
+for file in .tigger/index/*;do
+    if [ -f $file ];then
+       file_name=$(basename $file)
+       if [ ! -e  "$file_name" ] ;then
+          while [ $commit_index -ge 0 ];do
+               if [ -e .tigger/index/.commit-"$commit_index"/"$file_name" ];then
+                  echo $file_name "- file deleted" >> status_temporary_file
+                  break
+               else
+                  echo $file_name "- added to index, file deleted" >> status_temporary_file
+                  break
+               fi
+               commit_index=$((commit_index-1))
+           done
+       fi
+    fi
+done
+#deleted
+for file in .tigger/index/.commit-"$num"/*;do
+    file_name=$(basename $file)
+    if [ ! -e "$file_name" ] && [ ! -e .tigger/index/"$file_name" ] && [ -f .tigger/index/.commit-"$num"/"$file_name" ];then
+        echo $file_name "- deleted" >> status_temporary_file
+    fi
+done
+if [ ! -e status_temporary_file ];then
+    touch status_temporary_file
+fi
+cat status_temporary_file | sort -t'-' -k1
+rm status_temporary_file

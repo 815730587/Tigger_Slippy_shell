@@ -1,0 +1,6 @@
+#!/bin/dash
+if [ "$#" -eq 0 ];then
+   cat .tigger/commit.log |sort -t' ' -k1r
+else
+   echo "./tigger-log: error:No parameters required"
+fi

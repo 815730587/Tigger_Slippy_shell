@@ -1,0 +1,19 @@
+#!/bin/dash
+if [ "$#" -gt 0 ];then
+   file_index=$(echo $1|cut -d':' -f1)
+   file_name=$(echo $1|cut -d':' -f2)
+ 
+   if [ $file_index ] && [ -e .tigger/index/.commit-"$file_index"/"$file_name" ];then
+      cat .tigger/index/.commit-"$file_index"/"$file_name"
+   elif [ ! $file_index ] &&  [ -e .tigger/index/"$file_name" ];then
+      cat .tigger/index/"$file_name"
+   else
+      if [ ! $file_index ] && [ ! -e .tigger/index/"$file_name" ];then
+            echo tigger-show: error: "'$file_name'" not found in index
+      elif [ $file_index ] && [ ! -e .tigger/index/.commit-"$file_index" ];then
+           echo tigger-show: error: unknown commit "'$file_index'"
+      elif [ $file_index ] && [ ! -e .tigger/index/.commit-"$file_index"/"$file_name" ];then
+            echo tigger-show: error: "'$file_name'" not found in commit "$file_index"
+     fi
+   fi
+fi

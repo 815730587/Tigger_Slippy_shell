@@ -1,0 +1,12 @@
+#!/bin/dash
+for file in "$@";do
+    if [ ! -e "$file" ] && [ ! -e .tigger/index/"$file" ];then
+        echo tigger-add: error: can not open "'$file'"
+    elif [ ! -e $file ] && [ -e .tigger/index/"$file" ];then
+         rm .tigger/index/"$file"
+    elif [ ! -e .tigger ];then
+       echo "tigger-add: error: tigger repository directory .tigger not found"
+    else
+       cp "$file" .tigger/index
+    fi
+done

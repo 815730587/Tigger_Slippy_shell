@@ -1,0 +1,11 @@
+#!/bin/dash
+if [ ! -e .tigger ];then
+    mkdir .tigger
+    mkdir .tigger/index
+    mkdir .tigger/branches
+    mkdir .tigger/branches/master
+    touch .tigger/commit.log
+    echo "Initialized empty tigger repository in .tigger"
+else
+    echo "tigger-init: error: .tigger already exists"
+fi
