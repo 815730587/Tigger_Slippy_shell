@@ -1,0 +1,425 @@
+#!/usr/bin/env python3
+#2041 autotest slippy subset0 slippy
+#seq 1 5 | python3 -s -S slippy '3q'
+import sys
+import re
+
+#seq 1 100 | 2041 slippy -n '1,/.1/p;/5/,/9/s/.//;/.2/,/.9/p;85q'> case.txt
+#seq 1 100 | python3 -s -S slippy -n '1,/.1/p;/5/,/9/s/.//;/.2/,/.9/p;85q'> output_my.txt
+
+#seq 10 40 | python3 -s -S slippy '/2/,4p' > output_my.txt
+#python3 -s -S slippy '4q;/2/d' five.txt two.txt
+#seq 10 40 | 2041 slippy '/2/,4p' > case.txt
+#diff output_my.txt case.txt
+def is_s_command(string_c):
+    address,regex=re.split('s',string_c,1)
+    regex_list=regex.split(regex[0])
+    if len(regex_list)==4:
+        return True
+    return False
+
+def command_processing(string_c):
+    flag_int=0
+    if ';' not in string_c and '\n' not in string_c:
+        if string_c[:-1].isdigit():
+            return string_c[-1],string_c[:-1],flag_int
+        if string_c[-1] in ['q','p','d']:
+            #regex=re.sub('/','',string_c[:-1])
+            flag_int=1
+            return string_c[-1],string_c[:-1],flag_int
+        if len(string_c)==1:
+            return string_c[0],'.*',flag_int
+        if 's' in string_c and is_s_command(string_c):
+            address,regex=re.split('s',string_c,1)
+            if regex[0]==regex[-1] or regex[-1]=='g':
+                return 's',string_c,flag_int
+    else:
+        if ';' in string_c:
+            regex_command_1,regex_command_2=string_c.split(';',1)
+            return regex_command_1,regex_command_2,'Mutiple'
+        if '\n' in string_c:
+            regex_command_1,regex_command_2=string_c.split('\n',1)
+            return regex_command_1,regex_command_2,'Mutiple'
+        
+
+def isMutiple(string_c):
+    if ';' not in string_c and '\n' not in string_c:
+        return False
+    return True
+
+def command_s_processing(string_c):
+    address,regex=re.split('s',string_c,1)
+    regex_list=regex.split(regex[0])
+    is_cover=1
+    if 'g' in regex_list:
+        is_cover=0
+    return address,regex_list,is_cover
+
+
+
+
+def command_all(regex_command):
+    command_list=[]
+    regex_list=[]
+    flag_int_list=[]
+    if isMutiple(regex_command):
+        if ';' in regex_command:
+            command_regex_list=regex_command.split(';')
+            for i in range(len(command_regex_list)):
+                x_1,x_2,x_3=command_processing(command_regex_list[i])
+                command_list.append(x_1)
+                regex_list.append(x_2)
+                flag_int_list.append(x_3)
+        else:
+            command_regex_list=regex_command.split('\n')
+            for i in range(len(command_regex_list)):
+                x_1,x_2,x_3=command_processing(command_regex_list[i])
+                command_list.append(x_1)
+                regex_list.append(x_2)
+                flag_int_list.append(x_3)
+    else:
+        x_1,x_2,x_3=command_processing(regex_command)
+        command_list.append(x_1)
+        regex_list.append(x_2)
+        flag_int_list.append(x_3)
+    return command_list,regex_list,flag_int_list
+
+flag_interal_p=dict()
+flag_interal_d=dict()
+flag_interal_s=dict()
+flag_start=dict()
+flag_end=dict()
+#every command number has their own flag
+def interval_command(command, regex, count_lines, line,i,flag_=False):
+    global flag_interal_p
+    global flag_interal_d
+    global flag_interal_s
+    global flag_start
+    global flag_end
+    
+    index_1, index_2 = regex.split(',')
+    if i not in flag_start.keys() and index_1.isdigit():
+        flag_start[i]=1
+    elif i not in flag_start.keys() and index_1.isdigit()==False:
+        flag_start[i]=2
+    if i not in flag_end.keys() and index_2.isdigit():
+        flag_end[i]=1
+    elif i not in flag_end.keys() and index_2.isdigit()==False:
+        flag_end[i]=2
+    
+    index_1 = re.sub('/', '', index_1)
+    index_2 = re.sub('/', '', index_2)
+    # index_1 must lower then index_2
+    if command == 'p' and line != False:
+        if result := re.search(index_1, line) and flag_start[i]==2:
+            flag_interal_p[i]=1
+            #print(f'commandNumber {i}  printnum 1              result:',line)
+            print(line)
+            return line
+        elif flag_end[i]==1 and i in flag_interal_p.keys() and flag_interal_p[i]==1:
+            flag_end[i]=0
+            if count_lines==int(index_2)-1:
+                flag_interal_p[i] = 0
+                #print(f'commandNumber {i}  printnum 2              result:',line)
+                print(line)
+                return line
+            if flag_interal_p[i] == 1:
+                #print(f'commandNumber {i}  printnum 3              result:',line)
+                print(line)
+                return line
+    #--------------------------------------------------------------------------
+        if flag_start[i]==1 and count_lines==int(index_1)-1 :
+            flag_start[i]=0
+            flag_interal_p[i]=1
+           # print(f'commandNumber {i}  printnum 4              result:',line)
+            print(line)
+            return line
+        elif i in flag_interal_p.keys() and flag_interal_p[i]==1 and flag_end[i]==2:
+            if result := re.search(index_2, line):
+                flag_interal_p[i] = 0
+                #print(f'commandNumber {i}  printnum 5              result:',line)
+                print(line)
+                return line
+            if flag_interal_p[i] == 1:
+               # print(f'commandNumber {i}  printnum 6              result:',line)
+                print(line)
+                return line
+
+    if command == 'd' and line != False:
+        if result := re.search(index_1, line) and flag_start[i]==2:
+            flag_interal_d[i]=1
+            #print(f'commandNumber {i}  printnum 1              result:',line)
+            return False
+        elif flag_end[i]==1 and i in flag_interal_d.keys() and flag_interal_d[i]==1:
+            if count_lines==int(index_2)-1:
+                flag_end[i]=0
+                flag_interal_d[i] = 0
+                #print(f'commandNumber {i}  printnum 2              result:',line)
+                return False
+            if flag_interal_d[i] == 1:
+                #print(f'commandNumber {i}  printnum 3              result:',line)
+                return False
+    #--------------------------------------------------------------------------
+        if flag_start[i]==1 and count_lines==int(index_1)-1 :
+            flag_start[i]=0
+            flag_interal_d[i]=1
+           # print(f'commandNumber {i}  printnum 4              result:',line)
+            return False
+        elif i in flag_interal_d.keys() and flag_interal_d[i]==1 and flag_end[i]==2:
+            if result := re.search(index_2, line):
+                flag_interal_d[i] = 0
+                #print(f'commandNumber {i}  printnum 5              result:',line)
+                return False
+            if flag_interal_d[i] == 1:
+               # print(f'commandNumber {i}  printnum 6              result:',line)
+                return False
+
+    if command == 's' and line != False:
+        address, regex_s_list, iscover = command_s_processing(regex)
+        index_1, index_2 = address.split(',')
+        index_1 = re.sub('/', '', index_1)
+        index_2 = re.sub('/', '', index_2)
+        
+        if start := re.search(index_1,line):
+            if i in flag_interal_s.keys() and flag_interal_s[i]==0:
+               line = re.sub(regex_s_list[1], regex_s_list[2], line, count=iscover)
+               flag_interal_s[i]=1
+               return line
+            elif i not in flag_interal_s.keys():
+               line = re.sub(regex_s_list[1], regex_s_list[2], line, count=iscover)
+               flag_interal_s[i]=1
+               return line
+
+        if i in flag_interal_s.keys() and  flag_interal_s[i]==1:
+            
+            if end := re.search(index_2, line):
+                line = re.sub(regex_s_list[1], regex_s_list[2], line, count=iscover)
+                flag_interal_s[i] = 0
+                return line
+            if  flag_interal_s[i] == 1:
+                line = re.sub(regex_s_list[1], regex_s_list[2], line, count=iscover)
+                return line
+    return line
+
+
+def command_set(command, regex, flag_int, count_lines, line,flag_,flag_last=False):
+
+    if command in ['q','p','d']:
+        regex=re.sub('/','',regex)
+    if command == 'q' and line != False:
+       
+        if regex.isdigit() and flag_int == 0:
+            
+            if count_lines == int(regex) - 1:
+                if flag_ !='-n':
+                    print(line)
+                return 'work_stop,Find index!'
+        else:
+            if result := re.search(regex, line) and regex!='$':
+                if flag_ !='-n' :
+                    print(line)
+                return 'work_stop,Find index!'
+    if command == 'p' and line != False :
+        if regex.isdigit() and flag_int == 0 and  flag_last==False:
+            if count_lines == int(regex) - 1:
+                print(line)
+        elif regex=='$'and flag_last==True:
+            print(line)
+        elif regex!='$' and  flag_last==False:
+            if result := re.search(regex, line):
+                print(line)
+                                
+    if command == 'd' and line!=False:
+        if regex.isdigit() and flag_int == 0:
+            if count_lines == int(regex) - 1:
+                line = False
+                return line
+        elif flag_last==False:
+            if result := re.search(regex, line):
+                line = False
+                return line
+    if command == 's' and line!=False:
+        address, regex_s_list, iscover = command_s_processing(regex)
+        #print(regex_s_list)
+        if address != '' and address.isdigit() == False:
+            address = re.sub(address[0], '', address)
+        if address == '':
+            line = re.sub(regex_s_list[1], regex_s_list[2], line, count=iscover)
+            return line
+        elif address.isdigit():
+            if count_lines == int(address) - 1:
+                line = re.sub(regex_s_list[1], regex_s_list[2], line, count=iscover)
+                return line
+        else:
+            if result := re.search(address, line):
+                line = re.sub(regex_s_list[1], regex_s_list[2], line, count=iscover)
+                return line
+    return line
+      
+def read_sys(regex_command,flag_=False,flag_file=False,file_data=[],file_name=''):
+    count_lines = 0
+    command_list, regex_list, flag_int_list = command_all(regex_command)
+    # print(command_list)
+    # print(regex_list)
+    # print(flag_int_list)
+    d_last=[]
+    while True:
+        if flag_file==False:
+            line = sys.stdin.readline().strip('\n')
+        else:
+            line = file_data[count_lines].strip('\n')
+        if line!='':
+            thelast=line
+        if line =='':
+            for i in range(len(command_list)):
+                if command_list[i]=='p' and regex_list[i]=='$':
+                    line = command_set(command_list[i], regex_list[i], flag_int_list[i], count_lines, thelast, flag_,flag_last=True)
+            break
+        for i in range(len(command_list)):
+            if ',' not in regex_list[i]:
+                if command_list[0]=='d' and regex_list[0]=='$':
+                    line = command_set(command_list[i], regex_list[i], flag_int_list[i], count_lines, line, flag_,True)
+                else:
+                    line = command_set(command_list[i], regex_list[i], flag_int_list[i], count_lines, line, flag_)
+            else:
+                line = interval_command(command_list[i], regex_list[i], count_lines, line, i, flag_)
+        if line == 'work_stop,Find index!':
+            break
+        d_last.append(line)
+        if command_list[0]=='d' and regex_list[0]=='$':
+            ss=1
+        else:
+            if line != False and flag_ not in ['-n','-i']:
+               print(line)
+            elif flag_=='-i' and line != False:
+                with open(file_name, "a") as f:
+                    f.write(line+'\n') 
+        count_lines += 1
+    if command_list[0]=='d' and regex_list[0]=='$':
+           for i in d_last[:-1]:
+            print(i)
+
+def delete_comment(text):
+    r_command = ''
+    if ';' in text:
+        command = text.split(';')
+        command_temp=[]
+        for i in range(len(command)):
+            command[i] = ''.join(command[i].split())
+            if '#' in command[i] and command[i].split('#')[0] !='':
+                command_temp.append(command[i].split('#')[0])
+            elif '#' not in command[i]:
+                command_temp.append(command[i])
+
+        r_command = command_temp[0].strip('\n') + ';'
+        for i in command_temp[1:]:
+            r_command = r_command + i.strip('\n') + ';'
+        r_command = r_command.strip(';')
+    else:
+        if '#' in text:
+            command = ''.join(text.split())
+            command = command.split('#')[0]
+            r_command = command
+        else:
+            command = ''.join(text.split())
+            r_command = command
+    return r_command
+
+
+def command_f(command_file):
+    file_command = []
+    r_command=''
+    with open(command_file, 'r') as f:
+        file_command.extend(f.readlines())
+    r_command = file_command[0].strip('\n') + ';'
+    for i in file_command[1:]:
+        r_command = r_command + i.strip('\n') + ';'
+    r_command = r_command.strip(';')
+    return r_command
+
+def read_file(start):
+    file_data = []
+    for i in range(start, len(sys.argv)):
+        with open(sys.argv[i], 'r') as f:
+            file_data.extend(f.readlines())
+    file_data.append('')
+    return file_data
+
+def clear_file(file_name):
+    with open(file_name, "r+") as f:
+        f.seek(0)
+        f.truncate() 
+
+if __name__ == '__main__':
+    flag = 0
+    if len(sys.argv) == 1:
+        print('usage: slippy [-i] [-n] [-f <script-file> | <sed-command>] [<files>...]')
+        sys.exit()
+    if sys.argv[1] not in ['-n', '-f', '-i'] and len(sys.argv) - 1 == 1:
+        r_command = sys.argv[1]
+        r_command=delete_comment(r_command)
+        read_sys(r_command)
+    elif sys.argv[1] not in ['-n', '-f', '-i'] and len(sys.argv) - 1 > 1:
+        r_command = sys.argv[1]
+        r_command=delete_comment(r_command)
+        file_data=read_file(2)
+        read_sys(r_command, flag_file=True, file_data=file_data)
+    elif sys.argv[1] == '-n' and sys.argv[2]!='-f':
+        if len(sys.argv)-1==2:
+            r_command = sys.argv[2]
+            r_command=delete_comment(r_command)
+            read_sys(r_command, flag_=sys.argv[1])
+        if len(sys.argv) - 1 > 2:
+            r_command = sys.argv[2]
+            r_command=delete_comment(r_command)
+            file_data=read_file(3)
+            read_sys(r_command,flag_=sys.argv[1], flag_file=True, file_data=file_data)
+
+    elif sys.argv[1] == '-f':
+        if len(sys.argv) - 1 == 2:
+            r_command=command_f(sys.argv[2])
+            r_command=delete_comment(r_command)
+            read_sys(r_command, flag_=sys.argv[1])
+        elif len(sys.argv) - 1 > 2:
+            file_data=read_file(3)
+            r_command=command_f(sys.argv[2])
+            r_command=delete_comment(r_command)
+            read_sys(r_command, flag_=sys.argv[1], flag_file=True, file_data=file_data)
+    elif sys.argv[1] == '-n' and sys.argv[2] == '-f':
+        if len(sys.argv)==4:
+            r_command=command_f(sys.argv[3])
+            r_command=delete_comment(r_command)
+            read_sys(r_command, flag_=sys.argv[1])
+        elif len(sys.argv)>4:
+            r_command=command_f(sys.argv[3])
+            r_command=delete_comment(r_command)
+            file_data=read_file(4)
+            read_sys(r_command,flag_=sys.argv[1],flag_file=True,file_data=file_data)
+    elif sys.argv[1] == '-i':
+        if sys.argv[2] != '-f':
+            if len(sys.argv)-1==2:
+                r_command = sys.argv[2]
+                r_command=delete_comment(r_command)
+                read_sys(r_command,flag_='-i')
+            elif len(sys.argv)-1>2:
+                r_command = sys.argv[2]
+                r_command=delete_comment(r_command)
+                file_data=read_file(3)
+                clear_file(sys.argv[3])
+                read_sys(r_command,flag_='-i',flag_file=True,file_data=file_data,file_name=sys.argv[3])
+        else:
+            
+            r_command=command_f(sys.argv[3])
+            r_command=delete_comment(r_command)
+            file_data=read_file(4)
+            clear_file(sys.argv[4])
+            read_sys(r_command,flag_='-i',flag_file=True,file_data=file_data,file_name=sys.argv[4])
+
+
+
+    
+    
+    
+
+        
+
